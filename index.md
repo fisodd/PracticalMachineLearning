@@ -1,16 +1,8 @@
----
-title: "Practical Machine Learning Course Project"
-author: "Alexander Carlton"
-date: "March 31, 2016"
-output: 
-  html_document: 
-    fig_caption: yes
-    keep_md: yes
----
+# Practical Machine Learning Course Project
+Alexander Carlton  
+March 31, 2016  
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+
 
 ## Executive Summary
 
@@ -48,7 +40,8 @@ Stuttgart, Germany: ACM SIGCHI, 2013.
 For the purposes of this project a class-specific version of
 the data set was used.
 
-```{r}
+
+```r
 url_train <- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv'
 url_check <- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv'
 filename_train <- 'pml-training.csv'
@@ -73,7 +66,8 @@ call to bring in all of these columns as numeric
 values would force read.csv() to treat the column as
 factors or characters.)
 
-```{r}
+
+```r
 pml_na_strings = c(
     '',               # Many values are empty -- might as well be NAs
     'NA',             # Many values are already marked NA -- keep as NA
@@ -86,6 +80,12 @@ data.frame(           # Table of dimensions of loaded datasets
     rows = c(nrow(pml_train), nrow(pml_test)),
     cols = c(ncol(pml_train), ncol(pml_test))
 )
+```
+
+```
+##               file  rows cols
+## 1 pml-training.csv 19622  160
+## 2  pml-testing.csv    20  160
 ```
 
 
@@ -112,7 +112,8 @@ which are the only a few rows with NA values,
 and the other a 'tall' dataset (those columns that
 did not turn into NA values when 'new_window != yes').
 
-```{r results='hold'}
+
+```r
 win_is_new <- pml_train$new_window == 'yes'              # find new-win rows
 data_keep <- pml_train[,8:160]                           # drop bookkeeping cols
 
@@ -132,6 +133,14 @@ data.frame(
         sum(colSums(is.na(data_tall))) / (nrow(data_tall)*ncol(data_tall))
     )
 )
+```
+
+```
+##     dataset  rows cols fractionNA
+## 1 pml_train 19622  160 0.61318354
+## 2 data_keep 19622  153 0.64123769
+## 3 data_wide   406  147 0.01786133
+## 4 data_tall 19622   53 0.00000000
 ```
 
 The 'wide' dataset appears to offer a less attractive basis
@@ -156,7 +165,8 @@ and both are separate from a 'probe' dataset that can
 be used for final model predictions (fully independent
 from the data used to develop the model).
 
-```{r}
+
+```r
 suppressPackageStartupMessages(library(caret))
 
 set.seed(20160331)        # Pick a seed, any seed, but set _some_ seed...
@@ -180,6 +190,13 @@ data.frame(
     set = c('trainx', 'checkx', 'probex'),
     rows = c(nrow(trainx), nrow(checkx), nrow(probex))
 )
+```
+
+```
+##      set rows
+## 1 trainx 7850
+## 2 checkx 5883
+## 3 probex 5889
 ```
 
 
@@ -218,12 +235,17 @@ basic call to `randomForest` possible, model the response
 against all available parameters, and rely on the default
 values for everything else.
 
-```{r}
+
+```r
 suppressPackageStartupMessages(library(randomForest))
 fit_rf <- randomForest(trainx, trainy)
 yhat_rf <- predict(fit_rf, newdata = checkx)
 miss_rf <- mean(yhat_rf != checky)
 round(miss_rf, 3)
+```
+
+```
+## [1] 0.01
 ```
 
 With just the most naive use of `randomForest()` we still
@@ -245,8 +267,14 @@ the computation requirements (memory and time),
 which is a benefit given
 that we are working with more than 10,000 observations.
 
-```{r fig.height=3}
+
+```r
 plot(fit_rf, main = 'OOB Error Versus Number of Trees')
+```
+
+![](index_files/figure-html/unnamed-chunk-6-1.png)<!-- -->
+
+```r
 ntree = 50    # Set a value of ntree for the rest of the work
 ```
 
@@ -274,7 +302,8 @@ Even after dropping the columns full of NA values,
 there are still in excess of 50 parameters in the dataset.
 It is unlikely that all of these are going to be required.
 
-```{r}
+
+```r
 # Values used to drive cross validation
 p <- ncol(trainx)
 vals_parms <- floor(c(p, p/2, p/4, p/8, p/16))
@@ -285,7 +314,8 @@ as calculated in the original naive fit, which is based on
 the importance value as calculated by the Gini index.
 Each model in this sequence uses the first 'n' parameters in a sorted list.
 
-```{r}
+
+```r
 # Pull together lists of names and of column-ids, sorted by importance
 ordering <- order(fit_rf$importance, decreasing = TRUE)
 plist <- fit_rf$importance[ordering]
@@ -317,10 +347,19 @@ cv_res <- data.frame(paramters = save_n, missrate = save_misses)
 cv_res
 ```
 
-From a full set of `r vals_parms[1]` parameters all the way down to
-`r vals_parms[length(vals_parms)-1]` parameters the miss rate does rise,
+```
+##   paramters   missrate
+## 1        52 0.01210191
+## 2        26 0.01426752
+## 3        13 0.02458599
+## 4         6 0.03363057
+## 5         3 0.11859873
+```
+
+From a full set of 52 parameters all the way down to
+6 parameters the miss rate does rise,
 but not that quickly starting from a low base.
-Only at `r vals_parms[length(vals_parms)]` parameters does the miss rate
+Only at 3 parameters does the miss rate
 finally jump beyond what seems reasonable.
 
 
@@ -340,7 +379,7 @@ more than sufficient for our purposes.
 interface because experiments with other values, such as changing 'mtry',
 did not appreciably change our results.
 
-* We chose to use a small value of `r ntree` for 'ntree' because the
+* We chose to use a small value of 50 for 'ntree' because the
 OOB Error curve appears to flatten after that point, and fewer trees
 saves us memory, and some time.
 
@@ -352,7 +391,8 @@ complexity.
 For clarity, the final model is re-built below,
 based on the learnings from the preceding cross-validation work.
 
-```{r results='hold'}
+
+```r
 p_final <- 6
 puse_final <- pindices[1:p_final]
 trainx_final = trainx[, puse_final]
@@ -366,28 +406,59 @@ fit_final$importance
 fit_final
 ```
 
+```
+## [1] "6 parameters: roll_belt, yaw_belt, magnet_dumbbell_z, pitch_forearm, pitch_belt, magnet_dumbbell_y"
+##                   MeanDecreaseGini
+## roll_belt                1424.5988
+## yaw_belt                 1137.6618
+## magnet_dumbbell_z         932.7878
+## pitch_forearm             910.3412
+## pitch_belt                919.5080
+## magnet_dumbbell_y         869.2954
+## 
+## Call:
+##  randomForest(x = trainx_final, y = trainy, ntree = ntree) 
+##                Type of random forest: classification
+##                      Number of trees: 50
+## No. of variables tried at each split: 2
+## 
+##         OOB estimate of  error rate: 3.59%
+## Confusion matrix:
+##      A    B    C    D    E class.error
+## A 2171   25   22   11    3  0.02732975
+## B   36 1432   34   17    0  0.05727452
+## C   10   19 1321   17    2  0.03506209
+## D    6    6   22 1245    8  0.03263403
+## E    2   25    9    8 1399  0.03049203
+```
+
 Note the reported 'OOB estimate of error' and the convolution matrix
 provide good reason to hope that the predictions will fare well.
 
 
 ### Expected Out Of Sample Error
 
-```{r}
+
+```r
 # Note: Predict against independent 'probe' dataset
 yhat_final <- predict(fit_final, newdata = probex)
 missrate_final <- mean(yhat_final != probey)
 print(paste('Final miss rate:', round(missrate_final, 3)))
 ```
 
+```
+## [1] "Final miss rate: 0.032"
+```
+
 The expected out of sample error rate,
 as measured by comparing known responses against
 predictions from observations not used in model training, is
-about `r round(missrate_final, 3)`.
+about 0.032.
 
-Cutting down to only `r p_final` parameters is arguably
+Cutting down to only 6 parameters is arguably
 too aggressive, but the resulting error rate is still
 low enough to believe that we are not going to badly
-mis-predict on the 20 elements in the `r filename_test`
+mis-predict on the 20 elements in the pml-testing.csv
 file.
 
 If the situation required an absolute focus on minimizing
@@ -456,11 +527,18 @@ simplify the model as much as possible and yet
 still work on the relatively simple test
 case of 20 reasonably defined samples.
 
-```{r}
+
+```r
 # predict.randomForest() stops early if there are any NA values (even if not used)
 data_test <- pml_test[,colMeans(is.na(pml_test)) == 0] # drop cols w/ any NAs
 
 predict(fit_final, newdata = data_test)
+```
+
+```
+##  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 
+##  B  A  B  A  A  E  D  B  A  A  B  C  B  A  E  E  A  B  B  B 
+## Levels: A B C D E
 ```
 
 The key with any predictive model is to see how well
@@ -472,13 +550,16 @@ the wild.
 
 ### Variable Importance Plot
 
-```{r fig.height=6}
+
+```r
 varImpPlot(
     fit_rf,  n.var = 52, 
     bg = 'blue', cex = 0.66,
     main = 'Importance in Random Forest Model with All Non-NA Parameters'
 )
 ```
+
+![](index_files/figure-html/unnamed-chunk-12-1.png)<!-- -->
 
 This plot is based on the initial Random Forests model,
 using all the parameters without NA values in the initial dataset.
